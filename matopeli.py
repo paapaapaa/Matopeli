@@ -144,7 +144,7 @@ def moveSnake(map,snake,direction):
     elif map[newy][newx] == 2:
         snake.insert(0,[newx,newy])
         point_active = False
-        reward = 10
+        reward = 50
         
     else:
         #print(snake)
@@ -325,7 +325,7 @@ def main():
 
     #play()
     
-    
+    '''
     previous_direction = "l"
     
     alpha = 0.9 # Learning rate
@@ -337,7 +337,7 @@ def main():
     episode_nums = []
     best_tot_rewards=[]
     best_tot_rewards_real = []
-    num_of_episodes = 100000
+    num_of_episodes = 1000000
     num_of_steps = 50000
     states = {}
     statecount = 0
@@ -370,6 +370,7 @@ def main():
             #print(f"begin action: {action}")
             
             new_state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
+            #print(state)
             #print(len(state))
             
             if str(new_state) in states:
@@ -471,7 +472,7 @@ def main():
         else:
             play()
             print("invalid input")
-    '''
+    
 
 def train():
     
@@ -594,21 +595,27 @@ def train():
     print(q_table)
     print(f"States found: {len(states)}")
     #print(states)
-    test(q_table,states)
+    #test(q_table,states)
     
-    np.savetxt('data.csv',q_table,delimiter=',')
+    #np.savetxt('data.csv',q_table,delimiter=',')
+    with open('qtable.pkl','wb') as f:
+        pickle.dump(q_table,f)
     
     with open('Found_States.pkl','wb') as f:
         pickle.dump(states,f)
 
 
-def test(q_table,states):
+def test():
     
     #q_table = np.loadtxt('data.csv',delimiter=',')
-    #with open('Found_States.pkl','rb') as f:
-    #    states = pickle.load(f)
+    with open('Found_States.pkl','rb') as f:
+        states = pickle.load(f)
+    with open('qtable.pkl','rb') as f:
+        q_table = pickle.load(f)
     sum_of_rewards = 0
     sum_of_actions = 0
+
+    print(type(q_table))
 
     for i in range(10):
 
@@ -616,17 +623,20 @@ def test(q_table,states):
 
 
         state, snake, point = initGame()
-        encState = encodeState(state)
+        #encState = encodeState(state)
         tot_reward = 0
         running = True
         previous_direction = "l"
         while running:
 
+            encState = encodeState(state)
             
             statenum = states.get(encState)
 
-
-            action = np.argmax(q_table[statenum,:])
+            if statenum != None:
+                action = np.argmax(q_table[statenum,:])
+            else:
+                action = previous_direction
             print(f"Chosen Action: {action}")
             print(f"Current Statenum: {statenum}")
             #state, reward, done, truncated, info = env.step(action)
