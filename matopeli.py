@@ -12,7 +12,7 @@ mapsize=10
 # 0 = empty
 # 2 = point
 # 1 = snek
-def createMap(points,x=mapsize,y=mapsize):
+def createMap(x=mapsize,y=mapsize):
     
     rows = []
     
@@ -25,24 +25,21 @@ def createMap(points,x=mapsize,y=mapsize):
         for j in range(y):
             
             
-            if [i,j] in points:
-                cols.append(2)
-            else:
-                cols.append(0)
+            cols.append(0)
         
         rows.append(cols)     
             
     #print(len(rows))
     return rows
 
-def refreshMap(map, snake, points):
+def refreshMap(map, snake, point):
     
     
     for i in range(mapsize):
         
         for j in range(mapsize):
             
-            if [j,i] in points:
+            if [j,i] == point:
                 
                 map[j][i] = 2
             else:
@@ -113,7 +110,7 @@ def drawMap(map):
         print(s)
     print()
     
-def moveSnake(map,snake,direction, points):
+def moveSnake(map,snake,direction):
     
     game_active = True
     point_active = True
@@ -146,7 +143,7 @@ def moveSnake(map,snake,direction, points):
         game_active = False
     elif map[newy][newx] == 2:
         snake.insert(0,[newx,newy])
-        points.pop(points.index([newy,newx]))
+        point_active = False
         reward = 10
         
     else:
@@ -157,9 +154,9 @@ def moveSnake(map,snake,direction, points):
        # print(snake)
         reward = -1
         
-    return snake, game_active, points, reward
+    return snake, game_active, point_active, reward
 
-def cycle(map,snake,points,inp,previous_direction="l"):
+def cycle(map,snake,point,inp,previous_direction="l"):
         
     #map = deflatten(map)
     #print(len(map))
@@ -197,12 +194,15 @@ def cycle(map,snake,points,inp,previous_direction="l"):
         
     #print(f"direction: {direction}")
         
-    snake, game_active, points, reward = moveSnake(map,snake,direction,points)
+    snake, game_active, point_active, reward = moveSnake(map,snake,direction)
     
-    map= refreshMap(map,snake,points)
+    if not point_active:
+        point = generatePoint(map)
+    
+    map= refreshMap(map,snake,point)
     
     
-    return map, points, snake , reward, game_active, previous_direction
+    return map, point, snake , reward, game_active, previous_direction
 
 def flatten(map):
     
@@ -238,9 +238,11 @@ def initGame():
     
     game_active = True
     #previous_direction = "l"
-    points = [[0,0],[1,3],[4,5],[5,1],[3,0],[7,0],[8,8],[8,1],[9,3],[3,7],[9,5],[6,2],[2,6],[6,8]]
+    #point = [[0,0],[1,3],[4,5],[5,1],[3,0],[7,0],[8,8],[8,1],[9,3],[3,7],[9,5],[6,2],[2,6],[6,8]]
+
     
-    map = createMap(points)
+    map = createMap()
+    point = generatePoint(map)
 
    
     reward = 0
@@ -250,11 +252,11 @@ def initGame():
     #print(snake)
     #point = generatePoint(map)
     #print(point)
-    map = refreshMap(map,snake,points)
+    map = refreshMap(map,snake,point)
     #drawMap(map)
     #print(game_active)
     
-    return map, snake, points
+    return map, snake, point
     
 def eval_policy(qtable_, num_of_episodes_):
     rewards = []
@@ -263,7 +265,7 @@ def eval_policy(qtable_, num_of_episodes_):
         
     
     for episode in range(num_of_episodes_): # This is out loop over num of episodes
-        state,snake,points = initGame()
+        state,snake,point = initGame()
         total_reward = 0
         running = True
         previous_direction = "l"
@@ -272,7 +274,7 @@ def eval_policy(qtable_, num_of_episodes_):
         while running:
             action = np.argmax(qtable_[state,:])
             action = action % 4
-            map, points, snake, reward, running, previous_direction = cycle(state,snake,points,action,previous_direction)
+            map, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
             total_reward += reward
             #print(reward)
         
@@ -320,8 +322,9 @@ def play():
     
 
 def main():
+
+    #play()
     
-    '''
     
     previous_direction = "l"
     
@@ -334,7 +337,7 @@ def main():
     episode_nums = []
     best_tot_rewards=[]
     best_tot_rewards_real = []
-    num_of_episodes = 500000
+    num_of_episodes = 100000
     num_of_steps = 50000
     states = {}
     statecount = 0
@@ -455,6 +458,7 @@ def main():
         sum_of_rewards += tot_reward
 
     print(f"After 10 runs \naverage total reward: {sum_of_rewards/10}\naverage number of actions: {sum_of_actions/10}")
+    
     '''
     while True:
         inp = input("train or test? or q to quit [train/test/q]: ")
@@ -467,7 +471,7 @@ def main():
         else:
             play()
             print("invalid input")
-
+    '''
 
 def train():
     
