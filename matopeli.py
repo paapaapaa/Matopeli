@@ -4,6 +4,13 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import pickle
+import tensorflow
+from keras.models import Sequential
+from keras.layers import InputLayer
+from keras.layers import Dense
+from keras.optimizers import Adam
+from collections import deque
+import math
 
 
 mapsize=10
@@ -83,7 +90,7 @@ def generatePoint(map):
             
             if(map[(y+i)%mapsize][(x+j)%mapsize] == 0):
             
-                return [(x+j)%mapsize,(y+i)%mapsize]
+                return [(y+i)%mapsize,(x+j)%mapsize]
         
     return [-1,-1]
 
@@ -110,7 +117,7 @@ def drawMap(map):
         print(s)
     print()
     
-def moveSnake(map,snake,direction):
+def moveSnake(map,snake,direction,point):
     
     game_active = True
     point_active = True
@@ -139,12 +146,14 @@ def moveSnake(map,snake,direction):
         
     if newx >= mapsize or newx < 0 or newy >= mapsize or newy < 0:
         game_active = False
+        reward = -10
     elif map[newy][newx] == 1:
         game_active = False
+        reward = -10
     elif map[newy][newx] == 2:
         snake.insert(0,[newx,newy])
         point_active = False
-        reward = 50
+        reward = 1
         
     else:
         #print(snake)
@@ -152,7 +161,11 @@ def moveSnake(map,snake,direction):
         #print(snake)
         snake.insert(0,[newx,newy])
        # print(snake)
-        reward = -1
+        dist = math.sqrt((newx-point[0])**2 +(newy-point[1])**2)
+        if dist != 0:
+            reward = 1/dist
+        else:
+            reward = 0
         
     return snake, game_active, point_active, reward
 
@@ -194,7 +207,7 @@ def cycle(map,snake,point,inp,previous_direction="l"):
         
     #print(f"direction: {direction}")
         
-    snake, game_active, point_active, reward = moveSnake(map,snake,direction)
+    snake, game_active, point_active, reward = moveSnake(map,snake,direction,point)
     
     if not point_active:
         point = generatePoint(map)
@@ -202,7 +215,7 @@ def cycle(map,snake,point,inp,previous_direction="l"):
     map= refreshMap(map,snake,point)
     
     
-    return map, point, snake , reward, game_active, previous_direction
+    return oneLine(map), point, snake , reward, game_active, previous_direction
 
 def flatten(map):
     
@@ -306,6 +319,29 @@ def encodeState(state):
     
     
     return encoded
+
+def oneLine(state):
+    
+    result = np.zeros((10,10),dtype=int)
+    r = 0
+    
+    
+    for row in state:
+        
+        c = 0
+        
+        for col in row:
+            
+            result[r][c] = col
+            c += 1
+        
+        r += 1
+
+    #result =result.flatten()
+    #result.append()
+
+    return result #.flatten()
+        
             
 def play():
     
@@ -318,6 +354,8 @@ def play():
     while running:
         new_state, point, snake, reward, running, previous_direction = cycle(state,snake,points,0)
         drawMap(new_state)
+        print(point)
+        print(snake)
     
     
 
@@ -325,103 +363,153 @@ def main():
 
     #play()
     
-    '''
+
+    
+    
     previous_direction = "l"
     
-    alpha = 0.9 # Learning rate
-    gamma = 0.5    
-    epsilon = 0.1
+    discount_factor = 0.95
+    
     best_reward = -1000
     num_of_interactions = []
     num_of_evals = 50
     episode_nums = []
     best_tot_rewards=[]
     best_tot_rewards_real = []
-    num_of_episodes = 1000000
+    
     num_of_steps = 50000
     states = {}
     statecount = 0
+    
+    epoch_points = 0
+    epoch_interactions = 0
+    epoch_length = 0
+    
+    fit_check = False
+    num_of_episodes = 500
+    alpha = 0.001 # Learning rate
+    gamma = 0.95    
+    epsilon = 1
+    epsilon_min = 0.1
+    epsilon_decay = 0.99995
+    batch = 32
+    fit_period = 32
+    counter = 0
+    buffer = deque(maxlen=2000)
+    total_interactions = 0
+    
+    model = Sequential()
+    model.add(Dense(24,input_dim=100,activation='relu'))
+    #model.add(Dense(100,activation='linear'))
+    #model.add(Dense(250,activation='relu'))
+    model.add(Dense(24,activation='relu'))
+    model.add(Dense(4,activation='linear'))
+    model.compile(loss='mse',optimizer=Adam(learning_rate=alpha),metrics=['mae'])
+    time_stamp1 = time.time()
 
-    q_table = np.zeros((1000000,4))
+    #q_table = np.zeros((1000000,4))
 
     for episode in range(num_of_episodes):
         
+        if fit_check:
+            time_stampfinal = time.time()  
+            print (f'Average reward after episode {episode +1}: {epoch_points/epoch_length}, with {epoch_interactions/epoch_length} cycles on average')
+            print(f"epsilon :{epsilon}")
+            print(f"Total states: {total_interactions}")
+            print(f"time taken {time_stampfinal-time_stamp1}\n")
+            time_stamp1 = time.time()
+            epoch_points = 0
+            epoch_length = 0
+            epoch_interactions = 0
+            fit_check = False
+            
+        epoch_length += 1
         actions = []
         rewards = []
+        #print(episode)
+        total_reward = 0
+        num_of_interactions = 0
+        previous_direction = "l"
         
         state, snake, point = initGame()
+        flatstate = oneLine(state).flatten()
+        #drawMap(state)
+        
+        '''
         if str(state) in states:
             statenum = states.get(str(state))
         else:
             states[str(state)] = statecount
             statenum = statecount
             statecount += 1
+        '''
+        
+        #encoded_state = oneLine(state)
         
         running = True
         
-        if np.random.uniform() < epsilon:
-            action = np.argmax(q_table[statenum,:])
-            action = action % 4
-        else:
-            action = np.random.randint(0,4)
+        
+        while running:
             
-        for step in range(num_of_steps):
-            
+            counter += 1
+            epoch_interactions += 1
             #print(f"begin action: {action}")
+            #print(previous_direction)
+            
+            if np.random.rand() <= epsilon:
+                action = np.random.randint(0,4)
+            
+            else:
+                action = np.argmax(model.predict(flatstate.reshape(1,-1),verbose=0))
+            
+            #print(f"Action: {action}")
             
             new_state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            #print(state)
+            #drawMap(new_state)
+            new_flatstate = new_state.flatten()
+            num_of_interactions += 1
+            
             #print(len(state))
+            total_reward += reward
             
-            if str(new_state) in states:
-                new_statenum = states.get(str(new_state))
-            else:
-                states[str(new_state)] = statecount
-                new_statenum = statecount
-                statecount += 1
+            buffer.append((state,action,reward,new_state,running))
             
-            if np.random.uniform() < epsilon:
-                new_action = np.argmax(q_table[statenum,:])
-                new_action = new_action % 4
-            else:
-                new_action = np.random.randint(0,4)
+            
+            
+            if len(buffer) >= batch and counter >= fit_period:
+                fit_check = True
+                counter = 0
+                minibatch = random.sample(buffer,batch)
                 
-            #print(f"new action: {new_action}")
-            #print(f"action action: {action}")
-            #print(state)
-            if not running:
-                #print(state)
-                q_table[statenum,action] = reward
-               # print(f"break action: {new_action}")
-                #print(f"action action2: {action}")
-                break
-            else:
-                #print(f"new action1: {action}")
-                #print(new_state == state)
-                #print(statenum)
-                q_table[statenum,action] = q_table[statenum,action] + alpha*(reward+gamma*np.max(q_table[new_statenum,:])-q_table[statenum,action])
-                #print(q_table[statenum,action])
-                #print(f"new action2: {action}")
-                state = new_state
-                action = new_action
-                #print(f"end action: {action}")
-                statenum = new_statenum
-        if episode % 10000 == 0:
-            #print(reward)
-            #print(statenum)
-            #print(q_table[statenum,action])
-            #print(np.argmax(q_table[state,:]))
-            episode_nums.append(episode)
-            #print(q_table[5])
-            #print(type(q_table))
-            #print(type(num_of_evals*10))
-            eval_reward = eval_policy(q_table,num_of_evals*10)
-            best_tot_rewards_real.append(eval_reward)
-            print(f'Reward after episode {episode+1} is {eval_reward}')
+                for state,action,reward,new_state,mini_running in minibatch:
+                    if mini_running:
+                        target = reward + gamma * np.argmax(model.predict(new_flatstate.reshape(1,-1),verbose=0))
+                    else:
+                        target = reward
+
+                    target_vec = model.predict(flatstate.reshape(1,-1),verbose=0)
+                    target_vec[0][action] = target
+                    model.fit(flatstate.reshape(1,-1), target_vec, epochs=1, verbose=0)
             
+            if len(buffer) >= fit_period:
+                if epsilon > epsilon_min:
+                    epsilon *= epsilon_decay
+                else:
+                    epsilon = 0.1
+                    
+            state = new_state
+            flatstate = new_flatstate
+            #time.sleep(1)
             
-    print (f'Tot reward of the found policy: {best_reward}')
-    print(q_table)
+            #print(f"init and action: {time_stamp2-time_stamp1}\nbuffercheck: {time_stampfinal-time_stamp2}\nTotal: {time_stampfinal-time_stamp1}")
+        epoch_points += total_reward  
+        total_interactions += num_of_interactions   
+
+            
+        
+        #print (f'Tot reward after episode {episode +1}: {total_reward}, with {num_of_interactions} cycles took {time_stampfinal-time_stamp1}')
+        #print(epsilon)
+    #print(q_table)
    # plt.plot(num_of_interactions, best_tot_rewards_real,label='Q-learning')
    # plt.legend()
    # plt.xlabel('Env. interactions')
@@ -437,18 +525,21 @@ def main():
 
     for i in range(10):
         state, snake, point = initGame()
+        state = oneLine(state)
+        flatState = state.flatten()
         tot_reward = 0
         running = True
         previous_direction = "l"
         while running:
 
-            statenum = states.get(str(state))
 
-
-            action = np.argmax(q_table[statenum,:])
+            #print(np.identity(10)[statenum:statenum + 1])
+            
+            #action = np.argmax(model.predict(np.identity(1000)[statenum:statenum+1],verbose=0))
+            action = np.argmax(model.predict(flatState.reshape(1,-1),verbose=0))
             #state, reward, done, truncated, info = env.step(action)
             state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            
+            flatState = state.flatten()
             sum_of_actions += 1
             tot_reward += reward
             drawMap(state)
@@ -472,7 +563,7 @@ def main():
         else:
             play()
             print("invalid input")
-    
+    '''
 
 def train():
     
@@ -507,7 +598,7 @@ def train():
         rewards = []
         
         state, snake, point = initGame()
-        encState = encodeState(state)
+        encState = oneLine(state)
         #print(encState)
         if encState in states.keys():
             #print("encstaet foubnd")
@@ -534,7 +625,7 @@ def train():
             
             new_state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
             #print(len(state))
-            new_encState = encodeState(new_state)
+            new_encState = oneLine(new_state)
             
             if new_encState in states.keys():
                 new_statenum = states.get(new_encState)
@@ -595,27 +686,21 @@ def train():
     print(q_table)
     print(f"States found: {len(states)}")
     #print(states)
-    #test(q_table,states)
+    test(q_table,states)
     
-    #np.savetxt('data.csv',q_table,delimiter=',')
-    with open('qtable.pkl','wb') as f:
-        pickle.dump(q_table,f)
+    np.savetxt('data.csv',q_table,delimiter=',')
     
     with open('Found_States.pkl','wb') as f:
         pickle.dump(states,f)
 
 
-def test():
+def test(q_table,states):
     
     #q_table = np.loadtxt('data.csv',delimiter=',')
-    with open('Found_States.pkl','rb') as f:
-        states = pickle.load(f)
-    with open('qtable.pkl','rb') as f:
-        q_table = pickle.load(f)
+    #with open('Found_States.pkl','rb') as f:
+    #    states = pickle.load(f)
     sum_of_rewards = 0
     sum_of_actions = 0
-
-    print(type(q_table))
 
     for i in range(10):
 
@@ -623,25 +708,22 @@ def test():
 
 
         state, snake, point = initGame()
-        #encState = encodeState(state)
+        encState = oneLine(state)
         tot_reward = 0
         running = True
         previous_direction = "l"
         while running:
 
-            encState = encodeState(state)
             
             statenum = states.get(encState)
 
-            if statenum != None:
-                action = np.argmax(q_table[statenum,:])
-            else:
-                action = previous_direction
+
+            action = np.argmax(q_table[statenum,:])
             print(f"Chosen Action: {action}")
             print(f"Current Statenum: {statenum}")
             #state, reward, done, truncated, info = env.step(action)
             state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            encState = states.get(encodeState(state))
+            encState = states.get(oneLine(state))
             
             sum_of_actions += 1
             tot_reward += reward
