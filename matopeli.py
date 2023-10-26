@@ -10,7 +10,9 @@ from keras.layers import InputLayer
 from keras.layers import Dense
 from keras.optimizers import Adam
 from collections import deque
+from keras.models import load_model
 import math
+import datetime
 
 
 mapsize=10
@@ -39,24 +41,31 @@ def createMap(x=mapsize,y=mapsize):
     #print(len(rows))
     return rows
 
-def refreshMap(map, snake, point):
+def refreshMap(map, snake, points):
     
+    #[8,0]
     
     for i in range(mapsize):
         
         for j in range(mapsize):
             
-            if [j,i] == point:
+            if [j,i] in points:
                 
-                map[j][i] = 2
+                map[i][j] = 2
             else:
-                map[j][i] = 0
+                map[i][j] = 0
     
     #print(point)
     
+    Head_placed = False                 # To place a different symbol for head of snake for the agent
+    
     for cords in snake:
         
-        map[cords[1]][cords[0]] = 1
+        if Head_placed:
+            map[cords[1]][cords[0]] = 1
+        else:
+            map[cords[1]][cords[0]] = 3
+            Head_placed = True
     
     #map[point[1]][point[0]] = 2
     
@@ -88,8 +97,8 @@ def generatePoint(map):
         
         for j in range(mapsize):
             
-            if(map[(y+i)%mapsize][(x+j)%mapsize] == 0):
-            
+            if(map[(x+j)%mapsize][(y+i)%mapsize] == 0):
+                #print(f"generated Point: {[(y+i)%mapsize,(x+j)%mapsize]}")
                 return [(y+i)%mapsize,(x+j)%mapsize]
         
     return [-1,-1]
@@ -109,7 +118,7 @@ def drawMap(map):
             
             if col == 0:
                 s += "0"
-            elif col == 1:
+            elif col == 1 or col == 3:
                 s += "S"
             else:
                 s += "*"
@@ -117,29 +126,83 @@ def drawMap(map):
         print(s)
     print()
     
-def moveSnake(map,snake,direction,point):
+def moveSnake(map,snake,direction,points):
     
     game_active = True
-    point_active = True
+    #point_active = True
     
     reward = 0
+    
+    # 0 = f
+    # 1 = r
+    # 2 = l
+    
     
     
     #print(f"dir: {direction}")
 
     
-    head = snake[0]
     
-    if direction == "r":
+    
+    head = snake[0]
+    second = snake[1]
+    
+    if second == [head[0]-1,head[1]]:
+        previous = "l"
+    elif second == [head[0]+1,head[1]]:
+        previous = "r"
+    elif second == [head[0],head[1]-1]:
+        previous = "u"
+    elif second == [head[0],head[1]+1]:
+        previous = "d"
+    else:
+        print("Second point of snake is in impossible location (THIS SHOULD NOT HAPPEN)")
+
+    if direction not in [0,1,2]:    # if invalid input is chosen somehow, choose forward
+        direction = 0
+        print("Hello Joona :), somehow directional input that was not 0,1 or 2 was received, Have a nice debugging!")
+
+
+    if direction == 0:              # Direction 0 : Forward
+        if previous == "l":
+            new_direction = "r"
+        elif previous == "r":
+            new_direction = "l"
+        elif previous == "u":
+            new_direction = "d"
+        else:
+            new_direction = "u"
+    elif direction == 1:            # Direction 1 : Right
+        if previous == "l":
+            new_direction = "d"
+        elif previous == "r":
+            new_direction = "u"
+        elif previous == "u":
+            new_direction = "l"
+        else:
+            new_direction = "r"
+    else:                           # Direction 2 : Left
+        if previous == "l":
+            new_direction = "u"
+        elif previous == "r":
+            new_direction = "d"
+        elif previous == "u":
+            new_direction = "r"
+        else:
+            new_direction = "l"
+    
+    
+    
+    if new_direction == "r":
         newx = head[0]+1
         newy = head[1]
-    elif direction == "l":
+    elif new_direction == "l":
         newx = head[0]-1
         newy = head[1]
-    elif direction == "u":
+    elif new_direction == "u":
         newx = head[0]
         newy = head[1]-1
-    elif direction == "d":
+    elif new_direction == "d":
         newx = head[0]
         newy = head[1]+1
    
@@ -152,24 +215,43 @@ def moveSnake(map,snake,direction,point):
         reward = -10
     elif map[newy][newx] == 2:
         snake.insert(0,[newx,newy])
-        point_active = False
-        reward = 1
+        points.pop(points.index([newx,newy]))
+        #print(f"Point: {removed} was removed from points")
+        #points.index
+        reward = 20
+        #print("Point Ate")
         
     else:
         #print(snake)
         snake.pop()
         #print(snake)
+        #old_dist = math.sqrt((head[0]-point[0])**2 +(head[1]-point[1])**2)
         snake.insert(0,[newx,newy])
        # print(snake)
-        dist = math.sqrt((newx-point[0])**2 +(newy-point[1])**2)
+        #reward = 0
+        
+        #dist = math.sqrt((newx-points[0][0])**2 +(newy-points[0][1])**2)
+        reward = -0.1
+        '''
         if dist != 0:
-            reward = 1/dist
+            #print([newx,newy])
+            #print(dist)
+            #if old_dist > dist:
+
+            reward = -0.1
+            #else:
+            #    reward = -0.01
         else:
             reward = 0
+            print("MITEN ON MAHDOLLISTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        '''
+            
+    #if not point_active:
+    #    print(reward)
         
-    return snake, game_active, point_active, reward
+    return snake, game_active, points, reward
 
-def cycle(map,snake,point,inp,previous_direction="l"):
+def cycle(map,snake,points,direction,point_count=1):
         
     #map = deflatten(map)
     #print(len(map))
@@ -178,44 +260,17 @@ def cycle(map,snake,point,inp,previous_direction="l"):
     
     #inp = input("dir: ")
         
-    if inp == 0:
-        inp = "r"
-    elif inp == 1:
-        inp = "l"
-    elif inp == 2:
-        inp = "u"
-    elif inp == 3:
-        inp = "d"
-    else:
-        inp = "wrong"
-    
-    if inp == "q":
-        return
-    elif inp == "r" and previous_direction == "l":
-        direction = previous_direction
-    elif inp == "l" and previous_direction == "r":
-        direction = previous_direction
-    elif inp == "u" and previous_direction == "d":
-        direction = previous_direction
-    elif inp == "d" and previous_direction == "u":
-        direction = previous_direction
-    elif inp == "wrong":
-        direction = previous_direction
-    else:
-        direction = inp  
-        previous_direction = inp
-        
     #print(f"direction: {direction}")
         
-    snake, game_active, point_active, reward = moveSnake(map,snake,direction,point)
+    snake, game_active, points, reward = moveSnake(map,snake,direction,points)
     
-    if not point_active:
-        point = generatePoint(map)
+    if (len(points) < point_count):
+        points.append(generatePoint(map))
     
-    map= refreshMap(map,snake,point)
+    map= refreshMap(map,snake,points)
     
     
-    return oneLine(map), point, snake , reward, game_active, previous_direction
+    return oneLine(map), points, snake , reward, game_active
 
 def flatten(map):
     
@@ -247,29 +302,35 @@ def deflatten(state):
             
                      
 
-def initGame():
+def initGame(starting_points=1):
     
-    game_active = True
+    #game_active = True
     #previous_direction = "l"
     #point = [[0,0],[1,3],[4,5],[5,1],[3,0],[7,0],[8,8],[8,1],[9,3],[3,7],[9,5],[6,2],[2,6],[6,8]]
 
     
     map = createMap()
-    point = generatePoint(map)
+
 
    
-    reward = 0
+    #reward = 0
 
     #drawMap(map)
     snake = generateSnake()
+    
+    points = []
+    
+    for i in range(starting_points):
+        points.append(generatePoint(map))
+        map = refreshMap(map,snake,points)
     #print(snake)
     #point = generatePoint(map)
     #print(point)
-    map = refreshMap(map,snake,point)
+    map = refreshMap(map,snake,points)
     #drawMap(map)
     #print(game_active)
     
-    return map, snake, point
+    return map, snake, points
     
 def eval_policy(qtable_, num_of_episodes_):
     rewards = []
@@ -343,109 +404,186 @@ def oneLine(state):
     return result #.flatten()
         
             
-def play():
-    
-    state, snake, points = initGame()
-    print(state)
-    drawMap(state)
-    print(points)
-    running = True
-    previous_direction = "l"
-    while running:
-        new_state, point, snake, reward, running, previous_direction = cycle(state,snake,points,0)
-        drawMap(new_state)
+def play(starting_points = 1):
+    #buffer = deque()
+    for number in range(10):
+        state, snake, point = initGame(starting_points)
+        print(state)
+        drawMap(state)
         print(point)
-        print(snake)
+        running = True
+        previous_direction = "l"
+        dir = 0
+        total_reward = 0
+        while running:
+            
+            i = input("give direction 0=f, 1=r, 2=l: ")
+            if i not in ['0','1','2']:
+                i = 0
+            new_state, point, snake, reward, running = cycle(state,snake,point,int(i))
+            total_reward += reward
+            print(reward)
+            #dir = 0
+            drawMap(new_state)
+            print(point)
+            #print(oneLine(state).flatten())
+            #print(oneLine(new_state).flatten())
+            #print(point)
+            #print(snake)
+            #time.sleep(1)
+            #buffer.append((oneLine(state).flatten(),int(i),reward,oneLine(new_state).flatten(),running))
+            state = new_state
+        print(total_reward)
+    #print(len(buffer))
+    #with open('expert_buffer.pkl','wb') as f:
+    #    pickle.dump(buffer,f)
+
+def correct():
+    buffer2 = deque(maxlen=2000)
+    with open('expert_buffer.pkl','rb') as f:
+        buffer = pickle.load(f)
     
-    
+    for mini_state,mini_action,mini_reward,mini_new_state,mini_running in buffer:   
+        buffer2.append((mini_state,int(mini_action),mini_reward,mini_new_state,mini_running))
+
+    with open('expert_buffer.pkl','wb') as f:
+        pickle.dump(buffer2,f)   
 
 def main():
 
-    #play()
+
+    #correct()
+    while True:
+        
+        command = input("Do you want to Train or Test [Train/Test/Q]: ")
+        
+        
+        if command == "Train" or command == "train":
+            
+            while True:
+                newold = input("Do you want to Train a new model or continue training a saved one [New/Old]: ")
+                if newold == "New" or newold == "new":
+                    trainNN(True)
+                    break
+                    
+                elif newold == "Old" or newold == "old":
+                    trainNN()
+                    break
+                    
+                else:
+                    print("Invalid Input >:c")
+        
+        
+        elif command == "Test" or command == "test":
+            
+            testNN()
+        elif command == "q" or command == "Q":
+            break
+        
+        else:
+            print("Invalid Input")
+            
+    
+    return
+
+def trainNN(new=False):
+    
     
 
-    
-    
-    previous_direction = "l"
-    
-    discount_factor = 0.95
-    
-    best_reward = -1000
+
     num_of_interactions = []
-    num_of_evals = 50
-    episode_nums = []
-    best_tot_rewards=[]
-    best_tot_rewards_real = []
-    
-    num_of_steps = 50000
-    states = {}
-    statecount = 0
     
     epoch_points = 0
     epoch_interactions = 0
     epoch_length = 0
+    stucks = 0
+    previous_episodes = 0
+    starting_points = 25
+    episode_points = 0
     
     fit_check = False
-    num_of_episodes = 500
+    num_of_episodes = 3000
     alpha = 0.001 # Learning rate
-    gamma = 0.95    
+    gamma = 0.95
     epsilon = 1
-    epsilon_min = 0.1
-    epsilon_decay = 0.99995
-    batch = 32
-    fit_period = 32
+    epsilon_min = 0.2
+    epsilon_decay = 0.9999
+    #               0.9998
+    batch = 64
+    fit_period = 2
     counter = 0
-    buffer = deque(maxlen=2000)
+    buffer = deque(maxlen=10000)
+
     total_interactions = 0
     
-    model = Sequential()
-    model.add(Dense(24,input_dim=100,activation='relu'))
-    #model.add(Dense(100,activation='linear'))
-    #model.add(Dense(250,activation='relu'))
-    model.add(Dense(24,activation='relu'))
-    model.add(Dense(4,activation='linear'))
-    model.compile(loss='mse',optimizer=Adam(learning_rate=alpha),metrics=['mae'])
+    game_average_points = 0
+    game_average_interactions = 0
+    if new:
+        #log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        #summary_writer = tensorflow.summary.create_file_writer(log_dir)
+        log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        model = Sequential()
+        model.add(Dense(100,input_dim=100,activation='relu'))
+        model.add(Dense(128,activation='relu'))
+        model.add(Dense(32,activation='relu'))
+        model.add(Dense(3,activation='linear'))
+    else:
+    
+        log_dir = "logs/20231025-235320"
+        model = load_model("model",compile=False)
+        previous_episodes = 16000
+        starting_points = 1
+        epsilon = 0.1
+        epsilon_min = 0.1
+    
+    #log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    summary_writer = tensorflow.summary.create_file_writer(log_dir)    
+
+    target_model = tensorflow.keras.models.clone_model(model)
+    target_model.set_weights(model.get_weights())
+    
+    #model.compile(loss='mse',optimizer=Adam(learning_rate=alpha),metrics=['mae'])
+    optimizer = tensorflow.keras.optimizers.Adam(learning_rate=alpha)
+    lossfn = tensorflow.keras.losses.MeanSquaredError()
+    
+
+
     time_stamp1 = time.time()
 
-    #q_table = np.zeros((1000000,4))
 
     for episode in range(num_of_episodes):
         
-        if fit_check:
-            time_stampfinal = time.time()  
-            print (f'Average reward after episode {episode +1}: {epoch_points/epoch_length}, with {epoch_interactions/epoch_length} cycles on average')
-            print(f"epsilon :{epsilon}")
+        episode_points = 0
+
+        if episode % 400 == 0 and starting_points > 1:
+            starting_points -= 1
+        
+        if episode % 500 == 0:
+            model.save("cache")
+        
+        if episode % 50 == 0:
+            time_stampfinal = time.time()
+            print(f"\n\n\n Average Points: {game_average_points/50} & Interactions: {game_average_interactions/50} past 50 games played at episode {episode+1}\nEpsilon {epsilon}\n")
             print(f"Total states: {total_interactions}")
-            print(f"time taken {time_stampfinal-time_stamp1}\n")
+            print(f"time taken {time_stampfinal-time_stamp1}\n\n")
+            game_average_points = 0
+            game_average_interactions = 0
             time_stamp1 = time.time()
-            epoch_points = 0
-            epoch_length = 0
-            epoch_interactions = 0
-            fit_check = False
+
+        if episode % 10 == 0:
+            target_model.set_weights(model.get_weights())
             
         epoch_length += 1
-        actions = []
-        rewards = []
-        #print(episode)
         total_reward = 0
         num_of_interactions = 0
-        previous_direction = "l"
         
-        state, snake, point = initGame()
+        state, snake, points = initGame(starting_points)
+        if episode % 500 == 0:
+            drawMap(state)
         flatstate = oneLine(state).flatten()
-        #drawMap(state)
-        
-        '''
-        if str(state) in states:
-            statenum = states.get(str(state))
-        else:
-            states[str(state)] = statecount
-            statenum = statecount
-            statecount += 1
-        '''
-        
-        #encoded_state = oneLine(state)
-        
+        point_cache = points.copy()
+        point_counter = 0
+ 
         running = True
         
         
@@ -453,289 +591,168 @@ def main():
             
             counter += 1
             epoch_interactions += 1
-            #print(f"begin action: {action}")
-            #print(previous_direction)
-            
+
             if np.random.rand() <= epsilon:
-                action = np.random.randint(0,4)
+                action = np.random.randint(0,3)
             
             else:
                 action = np.argmax(model.predict(flatstate.reshape(1,-1),verbose=0))
             
-            #print(f"Action: {action}")
+            new_state, points, snake, reward, running = cycle(state,snake,points,action,starting_points)
             
-            new_state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            #drawMap(new_state)
+            if episode % 500 == 0:
+        
+                drawMap(new_state)
+                time.sleep(.5)
+            
             new_flatstate = new_state.flatten()
+
             num_of_interactions += 1
             
-            #print(len(state))
+
             total_reward += reward
             
-            buffer.append((state,action,reward,new_state,running))
-            
+            buffer.append((flatstate,action,reward,new_flatstate,running))
             
             
             if len(buffer) >= batch and counter >= fit_period:
-                fit_check = True
+
                 counter = 0
                 minibatch = random.sample(buffer,batch)
                 
-                for state,action,reward,new_state,mini_running in minibatch:
-                    if mini_running:
-                        target = reward + gamma * np.argmax(model.predict(new_flatstate.reshape(1,-1),verbose=0))
+                mini_state,mini_action,mini_reward,mini_new_state,mini_running = zip(*minibatch)
+                mini_state = np.array(mini_state)
+                mini_action = np.array(mini_action)
+                mini_reward = np.array(mini_reward)
+                mini_new_state = np.array(mini_new_state)
+                mini_running = np.array(mini_running)
+                
+                target_q_values = target_model.predict(mini_state,verbose=0)
+                max_next_q_values = np.max(target_model.predict(mini_new_state,verbose=0),axis=1)
+                
+                for i in range(batch):
+                    if mini_running[i]:
+                        target_q_values[i][mini_action[i]] = mini_reward[i] + gamma * max_next_q_values[i]
                     else:
-                        target = reward
+                        
+                        target_q_values[i][mini_action[i]] = mini_reward[i]
 
-                    target_vec = model.predict(flatstate.reshape(1,-1),verbose=0)
-                    target_vec[0][action] = target
-                    model.fit(flatstate.reshape(1,-1), target_vec, epochs=1, verbose=0)
+                
+                with tensorflow.GradientTape() as tape:
+                    predicted_q_values = model(mini_state)
+                    loss = lossfn(target_q_values,predicted_q_values)
+                gradients = tape.gradient(loss,model.trainable_variables)
+                optimizer.apply_gradients(zip(gradients,model.trainable_variables))
+                
+                with summary_writer.as_default():
+                
+                    tensorflow.summary.scalar("Loss", loss, step=episode+previous_episodes)
+
+
+            if episode % 500 == 0:
+                print(f"reward: {total_reward}\interactions: {num_of_interactions}")
             
-            if len(buffer) >= fit_period:
-                if epsilon > epsilon_min:
-                    epsilon *= epsilon_decay
-                else:
-                    epsilon = 0.1
-                    
-            state = new_state
-            flatstate = new_flatstate
-            #time.sleep(1)
+                        
+            if  episode >= 100:
+                epsilon *= epsilon_decay
+                if epsilon < epsilon_min:
+                    epsilon = epsilon_min
             
-            #print(f"init and action: {time_stamp2-time_stamp1}\nbuffercheck: {time_stampfinal-time_stamp2}\nTotal: {time_stampfinal-time_stamp1}")
+            if episode +previous_episodes >= 4000:
+                epsilon_min = 0.1  
+            
+            if points == point_cache:
+                point_counter += 1
+                
+                if point_counter >= 100:
+                    stucks +=1
+                    break
+            else:
+                point_cache = points.copy()
+                point_counter = 0
+                episode_points += 1
+              
+            state = new_state.copy()
+            flatstate = new_flatstate.copy()
+        with summary_writer.as_default():
+            tensorflow.summary.scalar("Episode Cycles", num_of_interactions, step=episode+previous_episodes)
+            tensorflow.summary.scalar("Episode Reward", total_reward, step=episode+previous_episodes)
+            tensorflow.summary.scalar("Epsilon", epsilon, step=episode+previous_episodes)
+            tensorflow.summary.scalar("Points Eaten", episode_points, step=episode+previous_episodes)
         epoch_points += total_reward  
-        total_interactions += num_of_interactions   
-
-            
+        total_interactions += num_of_interactions
+        game_average_points += total_reward
+        game_average_interactions += num_of_interactions
         
-        #print (f'Tot reward after episode {episode +1}: {total_reward}, with {num_of_interactions} cycles took {time_stampfinal-time_stamp1}')
-        #print(epsilon)
-    #print(q_table)
-   # plt.plot(num_of_interactions, best_tot_rewards_real,label='Q-learning')
-   # plt.legend()
-   # plt.xlabel('Env. interactions')
-   # plt.ylabel('Best reward')
-   # plt.show()            
-
-
-
-    # Testing
+    model.summary()
+    print(f"\nStuck loops terminated: {stucks}\n")
+    summary_writer.close()
     
+    while True:
+        inp = input("Do you want to overwrite the previous model with this one? [Y/N]: ")
+        
+        if inp == 'Y' or inp =='y':
+            model.save("model")
+            print("Model saved.")
+            break
+        elif inp == 'N' or inp == 'n':
+            print("Model discarded.")
+            break
+        else:
+            print("Invalid input")
+
+    
+def testNN():
+    
+    # Testing
+    model = load_model("model",compile=False)
     sum_of_rewards = 0
     sum_of_actions = 0
+    model.summary()
 
-    for i in range(10):
-        state, snake, point = initGame()
+    for i in range(50):
+        state, snake, points = initGame()
         state = oneLine(state)
         flatState = state.flatten()
         tot_reward = 0
         running = True
         previous_direction = "l"
+        counter = 0
         while running:
 
-
+            
             #print(np.identity(10)[statenum:statenum + 1])
             
             #action = np.argmax(model.predict(np.identity(1000)[statenum:statenum+1],verbose=0))
             action = np.argmax(model.predict(flatState.reshape(1,-1),verbose=0))
             #state, reward, done, truncated, info = env.step(action)
-            state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
+            state, points, snake, reward, running = cycle(state,snake,points,action)
             flatState = state.flatten()
             sum_of_actions += 1
             tot_reward += reward
-            drawMap(state)
-            time.sleep(0.5)
-            if not running:
-                print("Total reward %d" %tot_reward)
-                break
-        sum_of_rewards += tot_reward
-
-    print(f"After 10 runs \naverage total reward: {sum_of_rewards/10}\naverage number of actions: {sum_of_actions/10}")
-    
-    '''
-    while True:
-        inp = input("train or test? or q to quit [train/test/q]: ")
-        if inp == "train":
-            train()
-        elif inp == "test":
-            test()
-        elif inp == "q":
-            return
-        else:
-            play()
-            print("invalid input")
-    '''
-
-def train():
-    
-    previous_direction = "l"
-    
-    alpha = 0.9 # Learning rate
-    gamma = 0.5    
-    epsilon = 0.1
-    best_reward = -1000
-    num_of_interactions = []
-    num_of_evals = 50
-    episode_nums = []
-    best_tot_rewards=[]
-    best_tot_rewards_real = []
-    num_of_episodes = 100000
-    num_of_steps = 50000
-    
-    
-
-
-    states = {}
-    #with open('Found_States.pkl','rb') as f:
-    #    states = pickle.load(f)
-    statecount = len(states)
-    
-    #q_table = np.loadtxt('data.csv',delimiter=',')
-    q_table = np.zeros((1000000,4))
-
-    for episode in range(num_of_episodes):
-        
-        actions = []
-        rewards = []
-        
-        state, snake, point = initGame()
-        encState = oneLine(state)
-        #print(encState)
-        if encState in states.keys():
-            #print("encstaet foubnd")
-            statenum = states.get(encState)
-        else:
+            #print(tot_reward)
             
-            states[encState] = statecount
-            
-            statenum = statecount
-            statecount = len(states)
-            
-        
-        running = True
-        
-        if np.random.uniform() < epsilon:
-            action = np.argmax(q_table[statenum,:])
-            action = action % 4
-        else:
-            action = np.random.randint(0,4)
-            
-        for step in range(num_of_steps):
-            
-            #print(f"begin action: {action}")
-            
-            new_state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            #print(len(state))
-            new_encState = oneLine(new_state)
-            
-            if new_encState in states.keys():
-                new_statenum = states.get(new_encState)
+            if reward != 50:
+                counter += 1
             else:
-                #print(len(states))
-                states[new_encState] = statecount
-                new_statenum = statecount
-                statecount = len(states)
-            
-            if np.random.uniform() < epsilon:
-                new_action = np.argmax(q_table[statenum,:])
-                new_action = new_action % 4
-            else:
-                new_action = np.random.randint(0,4)
+                counter = 0
                 
-            #print(f"new action: {new_action}")
-            #print(f"action action: {action}")
-            #print(state)
+            if counter >= 100:
+                print("\nJUMI-KESKEYTYS\n")
+                if i<= 5:
+                    time.sleep(2)
+                running = False
+                #reward = -10
+            if (i <= 5):
+                print(reward)
+                drawMap(state)
+                time.sleep(.2)
             if not running:
-                #print(state)
-                q_table[statenum,action] = reward
-               # print(f"break action: {new_action}")
-                #print(f"action action2: {action}")
-                break
-            else:
-                #print(f"new action1: {action}")
-                #print(new_state)
-                #print(state)
-                #print(new_state == state)
-                #print(new_encState == encState)
-                #print(encState)
-                #print(new_encState)
-                #break
-                #print(statenum)
-                q_table[statenum,action] = q_table[statenum,action] + alpha*(reward+gamma*np.max(q_table[new_statenum,:])-q_table[statenum,action])
-                #print(q_table[statenum,action])
-                #print(f"new action2: {action}")
-                state = new_state
-                action = new_action
-                #print(f"end action: {action}")
-                statenum = new_statenum
-                encState = new_encState
-        if episode % 10000 == 0:
-            #print(reward)
-            #print(statenum)
-            #print(q_table[statenum,action])
-            #print(np.argmax(q_table[state,:]))
-            episode_nums.append(episode)
-            #print(q_table[5])
-            #print(type(q_table))
-            #print(type(num_of_evals*10))
-            eval_reward = eval_policy(q_table,num_of_evals*10)
-            best_tot_rewards_real.append(eval_reward)
-            print(f'Reward after episode {episode+1} is {eval_reward}')
-            
-            
-    print (f'Tot reward of the found policy: {best_reward}')
-    print(q_table)
-    print(f"States found: {len(states)}")
-    #print(states)
-    test(q_table,states)
-    
-    np.savetxt('data.csv',q_table,delimiter=',')
-    
-    with open('Found_States.pkl','wb') as f:
-        pickle.dump(states,f)
-
-
-def test(q_table,states):
-    
-    #q_table = np.loadtxt('data.csv',delimiter=',')
-    #with open('Found_States.pkl','rb') as f:
-    #    states = pickle.load(f)
-    sum_of_rewards = 0
-    sum_of_actions = 0
-
-    for i in range(10):
-
-
-
-
-        state, snake, point = initGame()
-        encState = oneLine(state)
-        tot_reward = 0
-        running = True
-        previous_direction = "l"
-        while running:
-
-            
-            statenum = states.get(encState)
-
-
-            action = np.argmax(q_table[statenum,:])
-            print(f"Chosen Action: {action}")
-            print(f"Current Statenum: {statenum}")
-            #state, reward, done, truncated, info = env.step(action)
-            state, point, snake, reward, running, previous_direction = cycle(state,snake,point,action,previous_direction)
-            encState = states.get(oneLine(state))
-            
-            sum_of_actions += 1
-            tot_reward += reward
-            drawMap(state)
-            time.sleep(0.5)
-            if not running:
-                print("Total reward %d" %tot_reward)
+                print(f"Total reward {tot_reward}")
                 break
         sum_of_rewards += tot_reward
 
-    print(f"After 10 runs \naverage total reward: {sum_of_rewards/10}\naverage number of actions: {sum_of_actions/10}")              
-        
+    print(f"After 50 runs \naverage total reward: {sum_of_rewards/50}\naverage number of actions: {sum_of_actions/50}")
     
 
    
