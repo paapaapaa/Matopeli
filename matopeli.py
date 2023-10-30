@@ -8,11 +8,14 @@ import tensorflow
 from keras.models import Sequential
 from keras.layers import InputLayer
 from keras.layers import Dense
+from keras.layers import Conv2D
+from keras.layers import Flatten
 from keras.optimizers import Adam
 from collections import deque
 from keras.models import load_model
 import math
 import datetime
+
 
 
 mapsize=10
@@ -78,7 +81,7 @@ def generateSnake(x=mapsize,y=mapsize):
     
     snake = []
     
-    
+    #4
     for i in range(4):
         
         cords = []
@@ -97,8 +100,10 @@ def generatePoint(map):
         
         for j in range(mapsize):
             
-            if(map[(x+j)%mapsize][(y+i)%mapsize] == 0):
+            if(map[(y+i)%mapsize][(x+j)%mapsize] == 0):
                 #print(f"generated Point: {[(y+i)%mapsize,(x+j)%mapsize]}")
+                #print(f"y : {y} i : {i}")
+                #print(f"y : {x} i : {j}")
                 return [(y+i)%mapsize,(x+j)%mapsize]
         
     return [-1,-1]
@@ -146,6 +151,7 @@ def moveSnake(map,snake,direction,points):
     
     head = snake[0]
     second = snake[1]
+    point = points[0]
     
     if second == [head[0]-1,head[1]]:
         previous = "l"
@@ -159,6 +165,7 @@ def moveSnake(map,snake,direction,points):
         print("Second point of snake is in impossible location (THIS SHOULD NOT HAPPEN)")
 
     if direction not in [0,1,2]:    # if invalid input is chosen somehow, choose forward
+        print(direction)
         direction = 0
         print("Hello Joona :), somehow directional input that was not 0,1 or 2 was received, Have a nice debugging!")
 
@@ -225,26 +232,28 @@ def moveSnake(map,snake,direction,points):
         #print(snake)
         snake.pop()
         #print(snake)
-        #old_dist = math.sqrt((head[0]-point[0])**2 +(head[1]-point[1])**2)
+        old_dist = math.sqrt((head[0]-point[0])**2 +(head[1]-point[1])**2)
         snake.insert(0,[newx,newy])
        # print(snake)
         #reward = 0
         
-        #dist = math.sqrt((newx-points[0][0])**2 +(newy-points[0][1])**2)
-        reward = -0.1
-        '''
+        dist = math.sqrt((newx-point[0])**2 +(newy-point[1])**2)
+        #reward = -0.5
+        
         if dist != 0:
             #print([newx,newy])
             #print(dist)
             #if old_dist > dist:
-
-            reward = -0.1
+            if dist >= old_dist:
+                reward = (1-(1/(dist)))*-0.5
+            else:
+                reward = (1/dist)
             #else:
             #    reward = -0.01
         else:
             reward = 0
             print("MITEN ON MAHDOLLISTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        '''
+        
             
     #if not point_active:
     #    print(reward)
@@ -321,8 +330,9 @@ def initGame(starting_points=1):
     points = []
     
     for i in range(starting_points):
-        points.append(generatePoint(map))
         map = refreshMap(map,snake,points)
+        points.append(generatePoint(map))
+        
     #print(snake)
     #point = generatePoint(map)
     #print(point)
@@ -414,14 +424,12 @@ def play(starting_points = 1):
         running = True
         previous_direction = "l"
         dir = 0
-        total_reward = 0
         while running:
             
             i = input("give direction 0=f, 1=r, 2=l: ")
             if i not in ['0','1','2']:
                 i = 0
             new_state, point, snake, reward, running = cycle(state,snake,point,int(i))
-            total_reward += reward
             print(reward)
             #dir = 0
             drawMap(new_state)
@@ -433,7 +441,6 @@ def play(starting_points = 1):
             #time.sleep(1)
             #buffer.append((oneLine(state).flatten(),int(i),reward,oneLine(new_state).flatten(),running))
             state = new_state
-        print(total_reward)
     #print(len(buffer))
     #with open('expert_buffer.pkl','wb') as f:
     #    pickle.dump(buffer,f)
@@ -498,18 +505,18 @@ def trainNN(new=False):
     epoch_length = 0
     stucks = 0
     previous_episodes = 0
-    starting_points = 25
+    starting_points = 1
     episode_points = 0
     
     fit_check = False
-    num_of_episodes = 3000
+    num_of_episodes = 1000
     alpha = 0.001 # Learning rate
-    gamma = 0.95
+    gamma = 0.99
     epsilon = 1
     epsilon_min = 0.2
     epsilon_decay = 0.9999
     #               0.9998
-    batch = 64
+    batch = 32
     fit_period = 2
     counter = 0
     buffer = deque(maxlen=10000)
@@ -523,16 +530,30 @@ def trainNN(new=False):
         #summary_writer = tensorflow.summary.create_file_writer(log_dir)
         log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         model = Sequential()
+        '''
         model.add(Dense(100,input_dim=100,activation='relu'))
-        model.add(Dense(128,activation='relu'))
-        model.add(Dense(32,activation='relu'))
+        model.add(Dense(64,activation='relu'))
+        model.add(Dense(64,activation='relu'))
         model.add(Dense(3,activation='linear'))
+        '''
+        model.add(InputLayer(input_shape=(10,10,1)))
+        model.add(Conv2D(128,4,activation='relu'))
+        model.add(Conv2D(128,2,activation='relu'))
+        model.add(Conv2D(64,1,activation='relu'))
+        model.add(Flatten())
+        model.add(Dense(200,activation='relu'))
+        model.add(Dense(3,activation='linear'))
+        
+        
     else:
     
-        log_dir = "logs/20231025-235320"
-        model = load_model("model",compile=False)
-        previous_episodes = 16000
-        starting_points = 1
+        log_dir = "logs/20231030-201525"
+        model = load_model("cache",compile=False)
+        previous_episodes = 2000
+        #starting_points = 25 - int(previous_episodes/400)
+        
+        #if starting_points < 1:
+        #    starting_points = 1
         epsilon = 0.1
         epsilon_min = 0.1
     
@@ -558,7 +579,7 @@ def trainNN(new=False):
         if episode % 400 == 0 and starting_points > 1:
             starting_points -= 1
         
-        if episode % 500 == 0:
+        if episode % 250 == 0:
             model.save("cache")
         
         if episode % 50 == 0:
@@ -573,6 +594,12 @@ def trainNN(new=False):
         if episode % 10 == 0:
             target_model.set_weights(model.get_weights())
             
+        if episode +previous_episodes >= 2000 and episode +previous_episodes < 4000:
+            epsilon_min = 0.1
+        
+        if episode +previous_episodes >= 4000:
+            epsilon_min = 0.01  
+            
         epoch_length += 1
         total_reward = 0
         num_of_interactions = 0
@@ -580,7 +607,8 @@ def trainNN(new=False):
         state, snake, points = initGame(starting_points)
         if episode % 500 == 0:
             drawMap(state)
-        flatstate = oneLine(state).flatten()
+        flatstate = oneLine(state)
+        #print(flatstate.shape)
         point_cache = points.copy()
         point_counter = 0
  
@@ -596,7 +624,9 @@ def trainNN(new=False):
                 action = np.random.randint(0,3)
             
             else:
-                action = np.argmax(model.predict(flatstate.reshape(1,-1),verbose=0))
+                
+                action = np.argmax(model.predict(flatstate.reshape(1,10,10),verbose=0))
+                
             
             new_state, points, snake, reward, running = cycle(state,snake,points,action,starting_points)
             
@@ -605,7 +635,7 @@ def trainNN(new=False):
                 drawMap(new_state)
                 time.sleep(.5)
             
-            new_flatstate = new_state.flatten()
+            new_flatstate = new_state
 
             num_of_interactions += 1
             
@@ -629,12 +659,11 @@ def trainNN(new=False):
                 
                 target_q_values = target_model.predict(mini_state,verbose=0)
                 max_next_q_values = np.max(target_model.predict(mini_new_state,verbose=0),axis=1)
-                
+                #print(batch)
                 for i in range(batch):
                     if mini_running[i]:
                         target_q_values[i][mini_action[i]] = mini_reward[i] + gamma * max_next_q_values[i]
                     else:
-                        
                         target_q_values[i][mini_action[i]] = mini_reward[i]
 
                 
@@ -658,13 +687,12 @@ def trainNN(new=False):
                 if epsilon < epsilon_min:
                     epsilon = epsilon_min
             
-            if episode +previous_episodes >= 4000:
-                epsilon_min = 0.1  
+
             
             if points == point_cache:
                 point_counter += 1
                 
-                if point_counter >= 100:
+                if point_counter >= 250:
                     stucks +=1
                     break
             else:
@@ -713,7 +741,7 @@ def testNN():
     for i in range(50):
         state, snake, points = initGame()
         state = oneLine(state)
-        flatState = state.flatten()
+        flatState = state
         tot_reward = 0
         running = True
         previous_direction = "l"
@@ -724,31 +752,31 @@ def testNN():
             #print(np.identity(10)[statenum:statenum + 1])
             
             #action = np.argmax(model.predict(np.identity(1000)[statenum:statenum+1],verbose=0))
-            action = np.argmax(model.predict(flatState.reshape(1,-1),verbose=0))
+            action = np.argmax(model.predict(flatState.reshape(1,10,10),verbose=0))
             #state, reward, done, truncated, info = env.step(action)
             state, points, snake, reward, running = cycle(state,snake,points,action)
             flatState = state.flatten()
             sum_of_actions += 1
             tot_reward += reward
-            #print(tot_reward)
             
             if reward != 50:
                 counter += 1
             else:
                 counter = 0
-                
-            if counter >= 100:
+            
+            if counter >= 500:
                 print("\nJUMI-KESKEYTYS\n")
                 if i<= 5:
                     time.sleep(2)
                 running = False
                 #reward = -10
+            
             if (i <= 5):
                 print(reward)
                 drawMap(state)
                 time.sleep(.2)
             if not running:
-                print(f"Total reward {tot_reward}")
+                print("Total reward %d" %tot_reward)
                 break
         sum_of_rewards += tot_reward
 
