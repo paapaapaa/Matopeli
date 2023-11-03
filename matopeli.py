@@ -100,11 +100,11 @@ def generatePoint(map):
         
         for j in range(mapsize):
             
-            if(map[(y+i)%mapsize][(x+j)%mapsize] == 0):
+            if(map[(x+i)%mapsize][(y+j)%mapsize] == 0):
                 #print(f"generated Point: {[(y+i)%mapsize,(x+j)%mapsize]}")
                 #print(f"y : {y} i : {i}")
                 #print(f"y : {x} i : {j}")
-                return [(y+i)%mapsize,(x+j)%mapsize]
+                return [(y+j)%mapsize,(x+i)%mapsize]
         
     return [-1,-1]
 
@@ -456,10 +456,27 @@ def correct():
     with open('expert_buffer.pkl','wb') as f:
         pickle.dump(buffer2,f)   
 
+def pointTest():
+    state,snake,point = initGame(starting_points=1)
+    #drawMap(state)
+
+    
+    for i in range(5000):
+        point = generatePoint(state)
+        #print(point)
+        #break
+        if point in snake:
+            print(f"collision found at {point}")
+            return
+    
+    print("no collisions found")
+        
+    return
+
+
 def main():
 
 
-    #correct()
     while True:
         
         command = input("Do you want to Train or Test [Train/Test/Q]: ")
@@ -509,7 +526,7 @@ def trainNN(new=False):
     episode_points = 0
     
     fit_check = False
-    num_of_episodes = 1000
+    num_of_episodes = 800
     alpha = 0.001 # Learning rate
     gamma = 0.99
     epsilon = 1
@@ -547,15 +564,15 @@ def trainNN(new=False):
         
     else:
     
-        log_dir = "logs/20231030-201525"
+        log_dir = "logs/20231031-234735"
         model = load_model("cache",compile=False)
-        previous_episodes = 2000
+        previous_episodes = 8500
         #starting_points = 25 - int(previous_episodes/400)
         
         #if starting_points < 1:
         #    starting_points = 1
-        epsilon = 0.1
-        epsilon_min = 0.1
+        epsilon = 0.01
+        epsilon_min = 0
     
     #log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     summary_writer = tensorflow.summary.create_file_writer(log_dir)    
@@ -579,7 +596,7 @@ def trainNN(new=False):
         if episode % 400 == 0 and starting_points > 1:
             starting_points -= 1
         
-        if episode % 250 == 0:
+        if episode % 50 == 0:
             model.save("cache")
         
         if episode % 50 == 0:
@@ -596,9 +613,11 @@ def trainNN(new=False):
             
         if episode +previous_episodes >= 2000 and episode +previous_episodes < 4000:
             epsilon_min = 0.1
-        
-        if episode +previous_episodes >= 4000:
+        elif episode +previous_episodes >= 4000 and episode + previous_episodes < 8500:
             epsilon_min = 0.01  
+        else:
+            epsilon_min = 0
+            epsilon = 0
             
         epoch_length += 1
         total_reward = 0
@@ -633,7 +652,7 @@ def trainNN(new=False):
             if episode % 500 == 0:
         
                 drawMap(new_state)
-                time.sleep(.5)
+                time.sleep(.1)
             
             new_flatstate = new_state
 
