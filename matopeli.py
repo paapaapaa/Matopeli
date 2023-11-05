@@ -11,6 +11,7 @@ from keras.layers import Dense
 from keras.layers import Conv2D
 from keras.layers import Flatten
 from keras.optimizers import Adam
+from keras.backend import clear_session
 from collections import deque
 from keras.models import load_model
 import math
@@ -526,7 +527,7 @@ def trainNN(new=False):
     episode_points = 0
     
     fit_check = False
-    num_of_episodes = 800
+    num_of_episodes = 1000
     alpha = 0.001 # Learning rate
     gamma = 0.99
     epsilon = 1
@@ -566,12 +567,12 @@ def trainNN(new=False):
     
         log_dir = "logs/20231031-234735"
         model = load_model("cache",compile=False)
-        previous_episodes = 8500
+        previous_episodes = 10000
         #starting_points = 25 - int(previous_episodes/400)
         
         #if starting_points < 1:
         #    starting_points = 1
-        epsilon = 0.01
+        epsilon = 0
         epsilon_min = 0
     
     #log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -691,6 +692,11 @@ def trainNN(new=False):
                     loss = lossfn(target_q_values,predicted_q_values)
                 gradients = tape.gradient(loss,model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients,model.trainable_variables))
+                del tape
+                del gradients
+                clear_session()
+
+
                 
                 with summary_writer.as_default():
                 
