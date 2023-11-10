@@ -66,7 +66,7 @@ Description
 
 ## Results
 
-<img src="media/run.gif" width="150" height ="200">
+<img src="media/test.gif" width="150" height ="200">
 
   
 
