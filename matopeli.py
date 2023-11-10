@@ -595,7 +595,7 @@ def testNN():
 
             if (i <= 5):
                 # print(reward)
-                os
+
                 drawMap(state)
                 time.sleep(.15)
             if not running:
