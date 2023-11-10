@@ -335,8 +335,9 @@ def trainNN(new=False):
     epsilon_decay = 0.9999
 
     batch = 32          # Experience replay batch-size
-    fit_period = 2      # number of episodes after which experience replay is initiated
+    fit_period = 2      # number of actions after which experience replay is initiated
     counter = 0         # counter for fit period
+    target_update_period = 10
 
     # Buffer that stores maxlen gamestates, actions,rewards, new gamestates and whether the game is running for experience replay
     buffer = deque(maxlen=10000)
@@ -401,7 +402,7 @@ def trainNN(new=False):
             time_stamp1 = time.time()
 
         # Target model is updated every 10 episodes
-        if episode % 10 == 0:
+        if episode % target_update_period == 0:
             target_model.set_weights(model.get_weights())
 
         # Epsilon decay limiters, to control exploration vs exploitation
