@@ -2,6 +2,7 @@ import random
 import numpy as np
 import time
 import tensorflow
+import os
 from keras.models import Sequential
 from keras.layers import InputLayer
 from keras.layers import Dense
@@ -94,21 +95,23 @@ def drawMap(map):
     """
     Prints the gamestate
     """
+    RED = '\x1b[31m'
+    GREEN = '\x1b[32m'
+    RESET = '\x1b[0m'
+    s = f""
     for row in map:
-
-        s = ""
 
         for col in row:
 
             if col == 0:
                 s += "0"
             elif col == 1 or col == 3:
-                s += "S"
+                s += f"{GREEN}S{RESET}"
             else:
-                s += "*"
+                s += f"{RED}*{RESET}"
+        s += "\n"
 
-        print(s)
-    print()
+    print(s, end='\r')
 
 
 def moveSnake(map, snake, direction, points):
@@ -337,7 +340,7 @@ def trainNN(new=False):
     batch = 32          # Experience replay batch-size
     fit_period = 2      # number of actions after which experience replay is initiated
     counter = 0         # counter for fit period
-    target_update_period = 10
+    target_update_period = 10  # number of episodes between target network updates
 
     # Buffer that stores maxlen gamestates, actions,rewards, new gamestates and whether the game is running for experience replay
     buffer = deque(maxlen=10000)
@@ -591,7 +594,8 @@ def testNN():
                 running = False
 
             if (i <= 5):
-                print(reward)
+                # print(reward)
+                os
                 drawMap(state)
                 time.sleep(.15)
             if not running:
