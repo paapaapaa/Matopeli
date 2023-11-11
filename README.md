@@ -7,6 +7,7 @@ Description
   - [Usage](#usage)
   - [Configuration](#configuration)
   - [Results](#results)
+  - [Contact Information](#contact-information)
 
 ## Prerequisites
 
@@ -71,20 +72,38 @@ Here will be some results and observations from training the model provided.
 
 
 <img src="media/test.gif" alt="Stop Using Lynx >:c" width="150" height ="200">
-Here is one test run I recorded
+Here is one test run I recorded.<br>
+It's very hard to analyze the agent based on one recording other than to state that the agent could use some more training as it kills itself in the end for no reason.
+On other runs I have observed that the agent sometimes gets cornered inside its body and dies, and that sometimes it avoids getting cornered, but it is hard to figure out whether it avoided getting cornered on purpose or by accident.
 
 ### Points Eaten
 ![Points Eaten](media/pointsEaten.PNG)<br>
-Points eaten by the agent during training provided by tensorboard over 10k games of snake.
+Points eaten by the agent during training provided by tensorboard over 10k games of snake.<br>
+Highscore during this training period was 38 points eaten
 
 ### Episode Cycles
 ![Episode Cycles](media/Cycles.PNG)<br>
+Cycles per game of snake over 10k games.<br> 
+
+The cycles and points eaten correlate well in this training period. I was aiming for that in my configurations because previously I had issues with the average cycles increasing too fast and it resulted to the agent just trying to stay alive and not eating points (stuck running circles).
 
 ### Loss
 ![Loss](media/Loss.PNG)<br>
-  
+Loss function value (MSE) over 10k games of snake.
+
+The Loss function seems to have started to grasp the policy in the later episodes and it started a downward trend.<br>
+It is typical for a DQN to have fluctuating loss function values in the beginning
 
 
+I do not think that this configuration is capable of completing the game, however it is a good baseline and more training could still take it a lot further
+
+
+
+
+## Contact Information {#contact-information}
+
+- Joona Korkeamäki
+- joona.v.korkeamaki@tuni.fi
     
   
   
