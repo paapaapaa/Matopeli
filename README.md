@@ -6,11 +6,12 @@ Description
   - [Prerequisites](#prerequisites)
   - [Usage](#usage)
   - [Configuration](#configuration)
+  - [Results](#results)
 
 ## Prerequisites
 
--NumPy
--TensorFlow and Keras (Keras included with TensorFlow 2.0 or later)
+-NumPy<br>
+-TensorFlow and Keras (Keras included with TensorFlow 2.0 or later)<br>
 -Other imports are from the Python standard library
 
     pip install numpy
@@ -60,14 +61,27 @@ Description
   - buffer maxlen: The maximum length of the experience replay buffer
   - target_update_period: number of episodes between target network updates
 
-  I have come up with the current values by testing in few hour training batches, so they are atleast pretty good as is.
+  I have come up with the current values by testing in few hour training sessions, so they are atleast pretty good as is.
 
   Otherwise the neural network architechture can be edited, but by the current implementation the input needs to be 10x10 array.
 
 ## Results
 
-<img src="media/test.gif" width="150" height ="200">
+Here will be some results and observations from training the model provided.
 
+
+<img src="media/test.gif" alt="Stop Using Lynx >:c" width="150" height ="200">
+Here is one test run I recorded
+
+### Points Eaten
+![Points Eaten](media/pointsEaten.PNG)<br>
+Points eaten by the agent during training provided by tensorboard over 10k games of snake.
+
+### Episode Cycles
+![Episode Cycles](media/Cycles.PNG)<br>
+
+### Loss
+![Loss](media/Loss.PNG)<br>
   
 
 
