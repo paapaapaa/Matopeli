@@ -100,7 +100,7 @@ I do not think that this configuration is capable of completing the game, howeve
 
 
 
-## Contact Information {#contact-information}
+## Contact Information
 
 - Joona Korkeamäki
 - joona.v.korkeamaki@tuni.fi
