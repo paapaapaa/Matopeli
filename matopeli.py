@@ -329,12 +329,13 @@ def trainNN(new=False):
     previous_episodes = 0
     starting_points = 1
     episode_points = 0
+    episode_points_sum = 0
 
     num_of_episodes = 10000  # number of episodes to run
     alpha = 0.001       # Learning rate
-    gamma = 0.99        # Discoun_factor
+    gamma = 0.99       # Discoun_factor
     epsilon = 1
-    epsilon_min = 0.2
+    epsilon_min = 0.1
     epsilon_decay = 0.9999
 
     batch = 32          # Experience replay batch-size
@@ -369,7 +370,7 @@ def trainNN(new=False):
         prevepsilon = input("Give Starting epsilon: ")
         try:
             previous_episodes = int(previnp)
-            epsilon = int(prevepsilon)
+            epsilon = float(prevepsilon)
         except:
             print("Invalid Episodes or Epsilon")
             return
@@ -389,6 +390,8 @@ def trainNN(new=False):
 
     for episode in range(num_of_episodes):
 
+        episode_points = 0
+
         if episode % 50 == 0:
 
             # model is saved to a cache periodically in case the training is interrupted
@@ -396,12 +399,12 @@ def trainNN(new=False):
 
             time_stampfinal = time.time()
             print(
-                f"\n\n\n Average Points: {episode_points/50} & Interactions: {game_average_interactions/50} past 50 games played at episode {episode+1}\nEpsilon {epsilon}\n")
+                f"\n\n\n Average Points: {episode_points_sum/50} & Interactions: {game_average_interactions/50} past 50 games played at episode {episode+1}\nEpsilon {epsilon}\n")
             print(f"Total states: {total_interactions}")
             print(f"time taken {time_stampfinal-time_stamp1}\n\n")
 
             game_average_interactions = 0
-            episode_points = 0
+            episode_points_sum = 0
             time_stamp1 = time.time()
 
         # Target model is updated every 10 episodes
@@ -409,13 +412,12 @@ def trainNN(new=False):
             target_model.set_weights(model.get_weights())
 
         # Epsilon decay limiters, to control exploration vs exploitation
-        if episode + previous_episodes >= 2000 and episode + previous_episodes < 4000:
-            epsilon_min = 0.1
+        if episode + previous_episodes < 4000:
+            epsilon_min = 0.2
         elif episode + previous_episodes >= 4000 and episode + previous_episodes < 8500:
-            epsilon_min = 0.01
+            epsilon_min = 0.1
         else:
-            epsilon_min = 0
-            epsilon = 0
+            epsilon_min = 0.01
 
         total_reward = 0
         num_of_interactions = 0
@@ -517,8 +519,8 @@ def trainNN(new=False):
                 point_counter = 0
                 episode_points += 1
 
-            state = new_state
-            flatstate = new_flatstate
+            state = new_state.copy()
+            flatstate = new_flatstate.copy()
 
         # data that is stored in the logs for tensorboard
         with summary_writer.as_default():
@@ -532,6 +534,7 @@ def trainNN(new=False):
                 "Points Eaten", episode_points, step=episode+previous_episodes)
         total_interactions += num_of_interactions
         game_average_interactions += num_of_interactions
+        episode_points_sum += episode_points
 
     model.summary()
     print(f"\nStuck loops terminated: {stucks}\n")
