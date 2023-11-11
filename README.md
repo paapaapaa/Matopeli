@@ -1,16 +1,20 @@
 #  🐍Snake Game🐍
 
-Description
+This project is a reinforcement learning agent that is trained to play a classic snake game, that was custom made for this project. The game is played on a 10x10 grid where the agent collects points while avoiding collisions with its own body or board boundaries. The agent uses a Convolutional Neural Network (CNN) to process the 2d gameboard and extract relevant information that is then fed to a Deep Q-Network to make decisions based on the game's current state. During the training process of roughly 10 000 games, the agent reached a high score of 38 points collected in a single game.
+
+The project's journey included experimentation with various network architectures and hyperparameters to tune the agent's performance. This project was started as a learning experience to better understand machine learning techniques and especially to understand in what ways can gamestate be given to a netwrok and how it processes it into useful information. To this end I feel the project was a success.
 
 ## Table of Contents
   - [Prerequisites](#prerequisites)
   - [Usage](#usage)
   - [Configuration](#configuration)
+  - [Results](#results)
+  - [Contact Information](#contact-information)
 
 ## Prerequisites
 
--NumPy
--TensorFlow and Keras (Keras included with TensorFlow 2.0 or later)
+-NumPy<br>
+-TensorFlow and Keras (Keras included with TensorFlow 2.0 or later)<br>
 -Other imports are from the Python standard library
 
     pip install numpy
@@ -60,17 +64,48 @@ Description
   - buffer maxlen: The maximum length of the experience replay buffer
   - target_update_period: number of episodes between target network updates
 
-  I have come up with the current values by testing in few hour training batches, so they are atleast pretty good as is.
+  I have come up with the current values by testing in few hour training sessions, so they are atleast pretty good as is.
 
   Otherwise the neural network architechture can be edited, but by the current implementation the input needs to be 10x10 array.
 
 ## Results
 
-<img src="media/test.gif" width="150" height ="200">
-
-  
+Here will be some results and observations from training the model provided.
 
 
+<img src="media/test.gif" alt="Stop Using Lynx >:c" width="150" height ="200">
+Here is one test run I recorded.<br>
+It's very hard to analyze the agent based on one recording other than to state that the agent could use some more training as it kills itself in the end for no reason.
+On other runs I have observed that the agent sometimes gets cornered inside its body and dies, and that sometimes it avoids getting cornered, but it is hard to figure out whether it avoided getting cornered on purpose or by accident.
+
+### Points Eaten
+![Points Eaten](media/pointsEaten.PNG)<br>
+Points eaten by the agent during training provided by tensorboard over 10k games of snake.<br>
+Highscore during this training period was 38 points eaten
+
+### Episode Cycles
+![Episode Cycles](media/Cycles.PNG)<br>
+Cycles per game of snake over 10k games.<br> 
+
+The cycles and points eaten correlate well in this training period. I was aiming for that in my configurations because previously I had issues with the average cycles increasing too fast and it resulted to the agent just trying to stay alive and not eating points (stuck running circles).
+
+### Loss
+![Loss](media/Loss.PNG)<br>
+Loss function value (MSE) over 10k games of snake.
+
+The Loss function seems to have started to grasp the policy in the later episodes and it started a downward trend.<br>
+It is typical for a DQN to have fluctuating loss function values in the beginning
+
+
+I do not think that this configuration is capable of completing the game, however it is a good baseline and more training could still take it a lot further
+
+
+
+
+## Contact Information
+
+- Joona Korkeamäki
+- joona.v.korkeamaki@tuni.fi
     
   
   
