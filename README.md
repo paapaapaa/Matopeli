@@ -2,7 +2,7 @@
 
 This project is a reinforcement learning agent that is trained to play a classic snake game, that was custom made for this project. The game is played on a 10x10 grid where the agent collects points while avoiding collisions with its own body or board boundaries. The agent uses a Convolutional Neural Network (CNN) to process the 2d gameboard and extract relevant information that is then fed to a Deep Q-Network to make decisions based on the game's current state. During the training process of roughly 10 000 games, the agent reached a high score of 38 points collected in a single game.
 
-The project's journey included experimentation with various network architectures and hyperparameters to tune the agent's performance. This project was started as a learning experience to better understand machine learning techniques and especially to understand in what ways can gamestate be given to a netwrok and how it processes it into useful information. To this end I feel the project was a success.
+The project's journey included experimentation with various network architectures and hyperparameters to tune the agent's performance. This project was started as a learning experience to better understand machine learning techniques and especially to understand in what ways can gamestate be given to a network and how it processes it into useful information. To this end I feel the project was a success.
 
 ## Table of Contents
   - [Prerequisites](#prerequisites)
